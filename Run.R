@@ -1,4 +1,14 @@
 # Predicting Mediator
+omega1 <- 2*pi/52
+omega2 <- 2*pi/26
+
+Gm.ajuste <- matrix(0,7,7)
+
+Gm.ajuste[1,1]     <- 1  
+Gm.ajuste[2:3,2:3] <- diag(2)
+Gm.ajuste[4:5,4:5] <- G.sazonal(omega1)
+Gm.ajuste[6:7,6:7] <- G.sazonal(omega2)
+
 res1.mediator <- dglmNORMAL_FUN(F_med = cbind(1,data.week$gender,data.week$mun_comum,1,0,1,0),
                           G_med = Gm.ajuste,
                           discount = c(.98,.995),
