@@ -1,5 +1,5 @@
 # PaperMA-DGLM
-A unworked version of the dataset is available in the folder 'datasetSIH'.
+An unworked version of the dataset is available in the folder 'datasetSIH'.
 
 Order to run the files: 
 1. predMEDIATOR.R 
