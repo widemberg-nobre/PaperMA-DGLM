@@ -59,6 +59,8 @@ dglmBIN_FUN <- function(G_out,F_out,discount,idx_discount,Y=data.week$deaths,N=d
   return(Ypred)
 }
 
+# G specification
+
 G.sazonal <- function(x){
   return(matrix(c(cos(x),sin(x),-sin(x),cos(x)),2,2,byrow=TRUE))
 }
@@ -92,8 +94,7 @@ G8 <- G7[-c(7:8),-c(7:8)]
 G9 <- G6[-c(5:6),-c(5:6)]
 G10 <- G9[-c(5:6),-c(5:6)]
 
-
-
+# Results
 
 resultado1 <- dglmBIN_FUN(F_out = cbind(1,data.week$age,data.week$gender,data.week$mun_comum),
                           G_out = G1,
@@ -147,7 +148,6 @@ resultado10 <- dglmBIN_FUN(F_out = cbind(1,data.week$age,data.week$gender,data.w
 
 # root mean square predictive error
 
-# media do rMSPE
 rmspe<- c(sqrt(mean(apply((resultado1[,16:T1] - matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE))^2,2,mean))),
           sqrt(mean(apply((resultado2[,16:T1] - matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE))^2,2,mean))),
           sqrt(mean(apply((resultado3[,16:T1] - matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE))^2,2,mean))),
@@ -159,7 +159,8 @@ rmspe<- c(sqrt(mean(apply((resultado1[,16:T1] - matrix(rep(data.week$deaths[16:T
           sqrt(mean(apply((resultado9[,16:T1] - matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE))^2,2,mean))),
           sqrt(mean(apply((resultado10[,16:T1] - matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE))^2,2,mean))))
 
-# media das medias a posteriori do erro relativo absoluto
+# Relative absolute error
+
 rae <- c(mean((apply(abs(resultado1[,16:T1] - matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE))/matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE),2,mean))),
          mean((apply(abs(resultado2[,16:T1] - matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE))/matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE),2,mean))),
          mean((apply(abs(resultado3[,16:T1] - matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE))/matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE),2,mean))),
@@ -171,5 +172,5 @@ rae <- c(mean((apply(abs(resultado1[,16:T1] - matrix(rep(data.week$deaths[16:T1]
          mean((apply(abs(resultado9[,16:T1] - matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE))/matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE),2,mean))),
          mean((apply(abs(resultado10[,16:T1] - matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE))/matrix(rep(data.week$deaths[16:T1],1000),ncol=T1-15,byrow = TRUE),2,mean))))
 
-# absolute relative error
+# Comparison
 cbind(round(rmspe.m,3),round(rae.m*100,3))
