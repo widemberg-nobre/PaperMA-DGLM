@@ -1,5 +1,5 @@
 # PaperMA-DGLM
-Supplement of the pper: "Causal Mediation Effect Estimates via Dynamic Generalized Linear Models"
+Supplement of the paper: "Causal Mediation Effect Estimates via Dynamic Generalized Linear Models"
 
 An unworked version of the dataset is available in the folder 'datasetSIH'.
 
