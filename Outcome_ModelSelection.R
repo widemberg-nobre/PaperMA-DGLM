@@ -275,5 +275,4 @@ rae <- c(mean((apply(abs(resultado1[,16:T1] - matrix(rep(data.week$deaths[16:T1]
          mean((apply(abs(resultado10[,16:T1] - matrix(rep(data.week$deaths[16:T1],5000),ncol=T1-15,byrow = TRUE))/matrix(rep(data.week$deaths[16:T1],5000),ncol=T1-15,byrow = TRUE),2,mean))))
 
 # Comparison
-cbind(round(rmspe.m,3),round(rae.m*100,3))
 cbind(round(rmspe,3),round(rae*100,3))
