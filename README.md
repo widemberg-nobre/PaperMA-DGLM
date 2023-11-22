@@ -1,7 +1,7 @@
 # PaperMA-DGLM
 Supplement of the paper: "Causal Mediation Effect Estimates via Dynamic Generalized Linear Models"
 
-An unworked version of the dataset is available in the folder 'datasetSIH'.
+A free-treatment version of the dataset is available in the folder 'datasetSIH'.
 
 Files: 
 1. 'predMEDIATOR.R': function to predict M(0);
