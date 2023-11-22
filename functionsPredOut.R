@@ -1,72 +1,34 @@
-dglmBIN_FUN_1.0 <- function(G_out,F_out,F_out.0,discount,idx_discount,Y=data.week$deaths,N=data.week$hosp.week){
-  st_dim <- dim(G_out)[1]
-  dim_disc <- idx_discount[[1]]
-  
-  Ypred <- matrix(NA,1000,n)
-  
-  # initial values
-  a <- m <- matrix(0,n,st_dim)
-  a[1,1] <- log(mean(data.week$deaths/data.week$hosp.week)/(1-mean(data.week$deaths/data.week$hosp.week)))
-  C0 <- diag(100,st_dim)
-  s <- r <- f <- q <- f.star <- q.star <- c()
-  R <- C <- replicate(n,data.frame())
-  R[[1]] <- G_out%*%C0%*%t(G_out)
-  
-  # discount
-  for(dd in 1:dim_disc){
-    R[[1]][idx_discount[[dd+1]],idx_discount[[dd+1]]] <- 
-      G_out[idx_discount[[dd+1]],idx_discount[[dd+1]]]%*%C0[idx_discount[[dd+1]],idx_discount[[dd+1]]]%*%t(G_out[idx_discount[[dd+1]],idx_discount[[dd+1]]])/discount[dd]}
-  
-  R[[1]] <- (t(R[[1]]) + R[[1]])/2
-  f[1] <- F_out[1,]%*%a[1,]
-  q[1] <- t(F_out[1,])%*%R[[1]]%*%F_out[1,]
-  r[1] <- (q[1])^{-1}*(1 + exp(f[1]))
-  s[1] <- (q[1])^{-1}*(1 + exp(-f[1]))
-  f.star[1] <- log((r[1]+Y[1])/(s[1]+N[1]-Y[1]))
-  q.star[1] <- 1/(r[1]+Y[1]) + 1/(s[1]+N[1]-Y[1])
-  m[1,] <- c(a[1,]) + c(R[[1]]%*%F_out[1,]*(f.star[1] - f[1])/q[1])
-  C[[1]] <- R[[1]] - (R[[1]]%*%F_out[1,]%*%t(F_out[1,])%*%R[[1]])*((1-q.star[1]/q[1])/q[1])
-  
-  for(ll in 1:1000){
-    Theta <- mvrnorm(1,m[1,],C[[1]])
-    Ypred[ll,1] <- rbinom(1,N[1],expit(c(F_out[1,]%*%Theta)))
-  }
-  
-  # Updating
-  for(t in 2:n){
-    a[t,] <- G_out%*%m[t-1,]
-    R[[t]] <- G_out%*%C[[t-1]]%*%t(G_out)
-    
-    # discount
-    for(dd in 1:dim_disc){
-      R[[t]][idx_discount[[dd+1]],idx_discount[[dd+1]]] <- 
-        G_out[idx_discount[[dd+1]],idx_discount[[dd+1]]]%*%C[[t-1]][idx_discount[[dd+1]],idx_discount[[dd+1]]]%*%t(G_out[idx_discount[[dd+1]],idx_discount[[dd+1]]])/discount[dd]}
-    f[t] <- F_out[t,]%*%a[t,]
-    q[t] <- t(F_out[t,])%*%R[[t]]%*%F_out[t,]
-    r[t] <- (q[t])^{-1}*(1 + exp(f[t]))
-    s[t] <- (q[t])^{-1}*(1 + exp(-f[t]))
-    f.star[t] <- log((r[t]+Y[t])/(s[t]+N[t]-Y[t]))
-    q.star[t] <- 1/(r[t]+Y[t]) + 1/(s[t]+N[t]-Y[t])
-    m[t,] <- a[t,] + R[[t]]%*%F_out[t,]*((f.star[t] - f[t])/q[t])
-    C[[t]] <- R[[t]] - (R[[t]]%*%(F_out[t,]%*%t(F_out[t,]))%*%R[[t]])*((1-q.star[t]/q[t])/q[t])
-    for(ll in 1:1000){
-      Theta <- mvrnorm(1,m[t,],C[[t]])
-      Ypred[ll,t] <- rbinom(1,N[t],expit(c(F_out.0[t,]%*%Theta)))
+library(MASS)
+
+expit <- function(x){(1+exp(-x))^(-1)}
+
+integrand <- function(x,f00,q00) {log(1/(1+exp(x)))*dnorm(x,f00,sqrt(q00))}
+
+func <- function(inf,sup,leng,f0,q0){
+  c1 <- seq(-inf+.01,sup,len=leng)
+  c2 <- seq(-inf+.01,sup,len=leng)
+  c3 <- f0
+  c4 <- integrate(integrand,f00=f0,q00=q0, lower = c3-4*sqrt(q0), upper = c3+4*sqrt(q0))$value
+  aa1 <- matrix(NA,leng,leng)
+  for(i in 1:leng){
+    for(j in 1:leng){
+      if (c1[i] >= c2[j]) {aa1[i,j] <- -Inf}
+      if (c1[i] <  c2[j]) {aa1[i,j] <- -(sum(c(abs(digamma(c1[i] + 1) - digamma(c2[j] - c1[i] + 1) - c3),
+                                               abs(digamma(c2[j] - c1[i] + 1) - digamma(c2[j] + 2) - c4))))}
     }
   }
-  return(Ypred)
+  return(c(c1[which(apply(aa1,1,max) == max(aa1))],c2[which(apply(aa1,2,max) == max(aa1))]))
 }
 
 dglmBIN_FUN <- function(G_out,F_out,discount,idx_discount,Y=data.week$deaths,N=data.week$hosp.week){
   st_dim <- dim(G_out)[1]
   dim_disc <- idx_discount[[1]]
   
-  Ypred <- matrix(NA,1000,n)
-  
+  Ypred <- expit.lamb <- matrix(NA,1000,n)
   # initial values
   a <- m <- matrix(0,n,st_dim)
   a[1,1] <- log(mean(data.week$deaths/data.week$hosp.week)/(1-mean(data.week$deaths/data.week$hosp.week)))
-  C0 <- diag(100,st_dim)
+  C0 <- diag(0.2,st_dim)
   s <- r <- f <- q <- f.star <- q.star <- c()
   R <- C <- replicate(n,data.frame())
   R[[1]] <- G_out%*%C0%*%t(G_out)
@@ -79,17 +41,16 @@ dglmBIN_FUN <- function(G_out,F_out,discount,idx_discount,Y=data.week$deaths,N=d
   R[[1]] <- (t(R[[1]]) + R[[1]])/2
   f[1] <- F_out[1,]%*%a[1,]
   q[1] <- t(F_out[1,])%*%R[[1]]%*%F_out[1,]
-  r[1] <- (q[1])^{-1}*(1 + exp(f[1]))
-  s[1] <- (q[1])^{-1}*(1 + exp(-f[1]))
-  f.star[1] <- log((r[1]+Y[1])/(s[1]+N[1]-Y[1]))
-  q.star[1] <- 1/(r[1]+Y[1]) + 1/(s[1]+N[1]-Y[1])
+  
+  tauSTAR <- func(-2,1000,400,f[1],q[1]) + c(Y[1],N[1])
+  f.star[1] <- digamma(tauSTAR[1]+1) -  digamma(tauSTAR[2]-tauSTAR[1]+1)
+  q.star[1] <- trigamma(tauSTAR[1]+1) +  digamma(tauSTAR[2]-tauSTAR[1]+1)
+  
   m[1,] <- c(a[1,]) + c(R[[1]]%*%F_out[1,]*(f.star[1] - f[1])/q[1])
   C[[1]] <- R[[1]] - (R[[1]]%*%F_out[1,]%*%t(F_out[1,])%*%R[[1]])*((1-q.star[1]/q[1])/q[1])
   
-  for(ll in 1:1000){
-    Theta <- mvrnorm(1,m[1,],C[[1]])
-    Ypred[ll,1] <- rbinom(1,N[1],expit(c(F_out[1,]%*%Theta)))
-  }
+  expit.lamb[,1] <- rbeta(1000,tauSTAR[1]+1,tauSTAR[2]-tauSTAR[1]+1)
+  Ypred[,1] <- rbinom(1000,N[1],expit.lamb[,1])
   
   # Updating
   for(t in 2:T1){
@@ -102,17 +63,18 @@ dglmBIN_FUN <- function(G_out,F_out,discount,idx_discount,Y=data.week$deaths,N=d
         G_out[idx_discount[[dd+1]],idx_discount[[dd+1]]]%*%C[[t-1]][idx_discount[[dd+1]],idx_discount[[dd+1]]]%*%t(G_out[idx_discount[[dd+1]],idx_discount[[dd+1]]])/discount[dd]}
     f[t] <- F_out[t,]%*%a[t,]
     q[t] <- t(F_out[t,])%*%R[[t]]%*%F_out[t,]
-    r[t] <- (q[t])^{-1}*(1 + exp(f[t]))
-    s[t] <- (q[t])^{-1}*(1 + exp(-f[t]))
-    f.star[t] <- log((r[t]+Y[t])/(s[t]+N[t]-Y[t]))
-    q.star[t] <- 1/(r[t]+Y[t]) + 1/(s[t]+N[t]-Y[t])
+    
+    tauSTAR <- func(-2,1000,400,f[t],q[t]) + c(Y[t],N[t])
+    f.star[t] <- digamma(tauSTAR[1]+1) -  digamma(tauSTAR[2]-tauSTAR[1]+1)
+    q.star[t] <- trigamma(tauSTAR[1]+1) +  digamma(tauSTAR[2]-tauSTAR[1]+1)
+    
     m[t,] <- a[t,] + R[[t]]%*%F_out[t,]*((f.star[t] - f[t])/q[t])
     C[[t]] <- R[[t]] - (R[[t]]%*%(F_out[t,]%*%t(F_out[t,]))%*%R[[t]])*((1-q.star[t]/q[t])/q[t])
-    for(ll in 1:1000){
-      Theta <- mvrnorm(1,m[t,],C[[t]])
-      Ypred[ll,t] <- rbinom(1,N[t],expit(c(F_out[t,]%*%Theta)))
-    }
+    
+    expit.lamb[,t] <-  rbeta(1000,tauSTAR[1]+1,tauSTAR[2]-tauSTAR[1]+1)
+    Ypred[,t] <- rbinom(1000,N[t],expit.lamb[,t])
   }
+  
   # Discount factor (prediction Y[0,M(0)] or Y[0,M(1)])
   P_disc <- G_out%*%C[[t]]%*%t(G_out)
   W.y <- matrix(0,st_dim,st_dim)
@@ -121,7 +83,6 @@ dglmBIN_FUN <- function(G_out,F_out,discount,idx_discount,Y=data.week$deaths,N=d
     P_disc[idx_discount[[dd+1]],idx_discount[[dd+1]]]*((1-discount[dd])/discount[dd])
   
   # Prediction - Y[1,M(0)]
-  r2 <- s2 <- c()
   f.k <- q.k <-  c()
   a.k <- matrix(NA,n-T1,st_dim) 
   R.k <- C.k <- replicate(n-T1,data.frame())
@@ -129,8 +90,10 @@ dglmBIN_FUN <- function(G_out,F_out,discount,idx_discount,Y=data.week$deaths,N=d
   f.k[1] <- F_out[t,]%*%a.k[1,]
   R.k[[1]] <- G_out%*%C[[T1]]%*%t(G_out) + W.y 
   q.k[1]  <- F_out[T1,]%*%R.k[[1]]%*%F_out[T1,]
-  r2[1] <- (q.k[1])^{-1}*(1 + exp(f.k[1]))
-  s2[1] <- (q.k[1])^{-1}*(1 + exp(-f.k[1]))
+  tauSTAR <- func(-2,100000,1000,f.k[1],q.k[1])
+  
+  expit.lamb[,T1+1] <-  rbeta(1000,tauSTAR[1]+1,tauSTAR[2]-tauSTAR[1]+1)
+  Ypred[,T1+1] <- rbinom(1000,N[T1+1],expit.lamb[,T1+1])
   
   k <- 1
   for(t in (T1+2):n){
@@ -139,19 +102,79 @@ dglmBIN_FUN <- function(G_out,F_out,discount,idx_discount,Y=data.week$deaths,N=d
     R.k[[k]] <- G_out%*%R.k[[k-1]]%*%t(G_out) + W.y
     f.k[k] <- F_out[t,]%*%a.k[k,]
     q.k[k]  <- F_out[t,]%*%R.k[[k]]%*%F_out[t,]
-    r2[k] <- (q.k[k])^{-1}*(1 + exp(f.k[k]))
-    s2[k] <- (q.k[k])^{-1}*(1 + exp(-f.k[k]))
+    tauSTAR <- func(-2,125000,1500,f.k[k],q.k[k])
+    
+    expit.lamb[,T1+k] <-  rbeta(1000,tauSTAR[1]+1,tauSTAR[2]-tauSTAR[1]+1)
+    Ypred[,T1+k] <- rbinom(1000,N[T1+k],expit.lamb[,T1+k])
   }
+  return(list(Ypred,tauSTAR))
+}
+
+
+dglmBIN_FUN_1.0 <- function(G_out,F_out,F_out.0,discount,idx_discount,Y=data.week$deaths,N=data.week$hosp.week){
+  st_dim <- dim(G_out)[1]
+  dim_disc <- idx_discount[[1]]
   
-  # Predicted values
-  mu.aux <- matrix(NA,1000,n)
-  r.post <- c(r[1:T1],r2)
-  s.post <- c(s[1:T1],s2)
+  Ypred <- expit.lamb <- matrix(NA,1000,n)
+  # initial values
+  a <- m <- matrix(0,n,st_dim)
+  a[1,1] <- log(mean(data.week$deaths/data.week$hosp.week)/(1-mean(data.week$deaths/data.week$hosp.week)))
+  C0 <- diag(0.2,st_dim)
+  s <- r <- f <- q <- f.star <- q.star <- c()
+  f_1.0 <- q_1.0 <- rep(NA,n)
+  R <- C <- replicate(n,data.frame())
+  R[[1]] <- G_out%*%C0%*%t(G_out)
   
-  for(lll in 1:1000){
-    for(ppp in (T1+1):n){
-      mu.aux[lll,ppp] <- rbeta(1,r.post[ppp]+Ypred[lll,ppp-1],s.post[ppp] + N[ppp-1] - Ypred[lll,ppp-1])
-      Ypred[lll,ppp] <- rbinom(1,N[ppp],mu.aux[lll,ppp])
+  # discount
+  for(dd in 1:dim_disc){
+    R[[1]][idx_discount[[dd+1]],idx_discount[[dd+1]]] <- 
+      G_out[idx_discount[[dd+1]],idx_discount[[dd+1]]]%*%C0[idx_discount[[dd+1]],idx_discount[[dd+1]]]%*%t(G_out[idx_discount[[dd+1]],idx_discount[[dd+1]]])/discount[dd]}
+  
+  R[[1]] <- (t(R[[1]]) + R[[1]])/2
+  f[1] <- F_out[1,]%*%a[1,]
+  q[1] <- t(F_out[1,])%*%R[[1]]%*%F_out[1,]
+  
+  tauSTAR <- func(-2,1000,400,f[1],q[1]) + c(Y[1],N[1])
+  f.star[1] <- digamma(tauSTAR[1]+1) -  digamma(tauSTAR[2]-tauSTAR[1]+1)
+  q.star[1] <- trigamma(tauSTAR[1]+1) +  digamma(tauSTAR[2]-tauSTAR[1]+1)
+  
+  m[1,] <- c(a[1,]) + c(R[[1]]%*%F_out[1,]*(f.star[1] - f[1])/q[1])
+  C[[1]] <- R[[1]] - (R[[1]]%*%F_out[1,]%*%t(F_out[1,])%*%R[[1]])*((1-q.star[1]/q[1])/q[1])
+  
+  
+  expit.lamb[,1] <- rbeta(1000,tauSTAR[1]+1,tauSTAR[2]-tauSTAR[1]+1)
+  Ypred[,1] <- rbinom(1000,N[1],expit.lamb[,1])
+  
+  # Updating
+  for(t in 2:n){
+    a[t,] <- G_out%*%m[t-1,]
+    R[[t]] <- G_out%*%C[[t-1]]%*%t(G_out)
+    
+    # discount
+    for(dd in 1:dim_disc){
+      R[[t]][idx_discount[[dd+1]],idx_discount[[dd+1]]] <- 
+        G_out[idx_discount[[dd+1]],idx_discount[[dd+1]]]%*%C[[t-1]][idx_discount[[dd+1]],idx_discount[[dd+1]]]%*%t(G_out[idx_discount[[dd+1]],idx_discount[[dd+1]]])/discount[dd]}
+    f[t] <- F_out[t,]%*%a[t,]
+    q[t] <- t(F_out[t,])%*%R[[t]]%*%F_out[t,]
+    
+    tauSTAR <- func(-2,1000,400,f[t],q[t]) + c(Y[t],N[t])
+    f.star[t] <- digamma(tauSTAR[1]+1) -  digamma(tauSTAR[2]-tauSTAR[1]+1)
+    q.star[t] <- trigamma(tauSTAR[1]+1) +  digamma(tauSTAR[2]-tauSTAR[1]+1)
+    
+    m[t,] <- a[t,] + R[[t]]%*%F_out[t,]*((f.star[t] - f[t])/q[t])
+    C[[t]] <- R[[t]] - (R[[t]]%*%(F_out[t,]%*%t(F_out[t,]))%*%R[[t]])*((1-q.star[t]/q[t])/q[t])
+    
+    if(t <= T1){
+      expit.lamb[,t] <-  rbeta(1000,tauSTAR[1]+1,tauSTAR[2]-tauSTAR[1]+1)
+      Ypred[,t] <- rbinom(1000,N[t],expit.lamb[,t])
+    }
+    
+    if(t > T1){
+      f_1.0[t] <- F_out.0[t,]%*%a[t,]
+      q_1.0[t] <- t(F_out.0[t,])%*%R[[t]]%*%F_out.0[t,]
+      tau.prior <- func(-2,100000,1000,f_1.0[t],q_1.0[t])
+      expit.lamb[,t] <-  rbeta(1000,tau.prior[1]+1,tau.prior[2]-tau.prior[1]+1)
+      Ypred[,t] <- rbinom(1000,N[t],expit.lamb[,t])
     }
   }
   return(Ypred)
@@ -175,21 +198,24 @@ G5[11:12,11:12] <- G.sazonal(omega3)
 
 # results
 age.10 <- c(data.week$age[1:T1],apply(res5.m,2,mean)[(T1+1):n])
-resultado1.Y_10 <- dglmBIN_FUN_1.0(F_out.0 = cbind(1,age.10,data.week$gender,data.week$mun_comum,1,0,1,0,1,0,1,0),
+system.time(resultado1.Y_10 <- dglmBIN_FUN_1.0(F_out.0 = cbind(1,age.10,data.week$gender,data.week$mun_comum,1,0,1,0,1,0,1,0),
                                    F_out =cbind(1,data.week$age,data.week$gender,data.week$mun_comum,1,0,1,0,1,0,1,0),
                                    G_out = G5,
-                                   discount = c(.98),
-                                   idx_discount = list(1,c(1:12)))
+                                   discount = c(.97),
+                                   idx_discount = list(1,c(1:12))))
+
+
 
 
 resultado1.Y_01 <- dglmBIN_FUN(F_out = cbind(1,data.week$age,data.week$gender,data.week$mun_comum,1,0,1,0,1,0,1,0),
                                G_out = G5,
-                               discount = c(.98),
+                               discount = c(.97),
                                idx_discount = list(1,1:12))
+
 
 resultado1.Y_00 <- dglmBIN_FUN(F_out = cbind(1,age.10,data.week$gender,data.week$mun_comum,1,0,1,0,1,0,1,0),
                                G_out = G5,
-                               discount = c(.98),
+                               discount = c(.97),
                                idx_discount = list(1,1:12))
 
 library(scales)
