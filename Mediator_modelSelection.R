@@ -1,3 +1,4 @@
+# Function DLM
 dglmNORMAL_FUN <- function(G_med,F_med,discount,idx_discount,M=data.week$age){
   st_dim <- dim(G_med)[1]
   dim_disc <- idx_discount[[1]]
@@ -88,7 +89,7 @@ dglmNORMAL_FUN <- function(G_med,F_med,discount,idx_discount,M=data.week$age){
   return(Mpred)
 }
 
-
+# G specficiation
 
 # Seasonal function
 G.sazonal <- function(x){
@@ -124,7 +125,7 @@ G8m <- G7m[-c(6:7),-c(6:7)]
 G9m <- G6m[-c(4:5),-c(4:5)]
 G10m <- G9m[-c(4:5),-c(4:5)]
 
-
+# Results
 res1.m <- dglmNORMAL_FUN(F_med = cbind(1,data.week$gender,data.week$mun_comum),
                          G_med = G1m,
                          discount = c(.98),
@@ -176,7 +177,7 @@ res10.m <- dglmNORMAL_FUN(F_med = cbind(1,data.week$gender,data.week$mun_comum,1
                          idx_discount = list(1,1:5))
 
 
-# media do rMSPE
+# Root mean square predictive error
 rmspe.m <- c(sqrt(mean(apply((res1.m[,16:T1] - matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE))^2,2,mean))),
              sqrt(mean(apply((res2.m[,16:T1] - matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE))^2,2,mean))),
              sqrt(mean(apply((res3.m[,16:T1] - matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE))^2,2,mean))),
@@ -188,7 +189,7 @@ rmspe.m <- c(sqrt(mean(apply((res1.m[,16:T1] - matrix(rep(data.week$age[16:T1],5
              sqrt(mean(apply((res9.m[,16:T1] - matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE))^2,2,mean))),
              sqrt(mean(apply((res10.m[,16:T1] - matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE))^2,2,mean))))
 
-# media das medias a posteriori do erro relativo absoluto
+# Absolute relative error 
 rae.m <-c(mean((apply(abs(res1.m[,16:T1] - matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE))/matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE),2,mean))),
           mean((apply(abs(res2.m[,16:T1] - matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE))/matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE),2,mean))),
           mean((apply(abs(res3.m[,16:T1] - matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE))/matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE),2,mean))),
@@ -199,3 +200,7 @@ rae.m <-c(mean((apply(abs(res1.m[,16:T1] - matrix(rep(data.week$age[16:T1],500),
           mean((apply(abs(res8.m[,16:T1] - matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE))/matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE),2,mean))),
           mean((apply(abs(res9.m[,16:T1] - matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE))/matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE),2,mean))),
           mean((apply(abs(res10.m[,16:T1] - matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE))/matrix(rep(data.week$age[16:T1],500),ncol=T1-15,byrow = TRUE),2,mean))))
+
+# Comparison
+cbind(round(rmspe.m,3),round(rae.m*100,3))
+
